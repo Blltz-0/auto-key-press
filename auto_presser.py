@@ -3,17 +3,50 @@ from tkinter import ttk
 import threading
 import time
 import pyautogui
+import json
+import os
 
+CONFIG_FILE = "config.json"
+
+# Load the configuration from a JSON file
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print("Error reading config file.")
+            
+    return {"key": "", "interval": 1.0}
+
+# Save the configuration to a JSON file
+def save_config(key, interval):
+    config = {"key": key, "interval": interval}
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(config, f)
+    except Exception as e:
+        print(f"Error saving config file: {e}")
+
+# Save and cleanly close
+def save_and_quit():
+    save_config(key_press_entry.get(), interval_value.get())
+    root.destroy()
+    
 # Main application window
 root = tk.Tk()
 root.title("Auto Key Presser")
 root.geometry("350x200")
+
+root.protocol("WM_DELETE_WINDOW", save_and_quit)
 
 # For columns and rows 0 to 5
 for col in range(6):
     root.columnconfigure(col, weight=2)
 for row in range(6):
     root.rowconfigure(row, weight=1)
+    
+saved_config = load_config()
 
 # Validation function to ensure only floats are typed
 def validate_float(new_value):
@@ -58,7 +91,9 @@ key_press_label = ttk.Label(root, text="Key to Press:")
 key_press_label.grid(column=0, row=1, sticky="e", padx=5)
 
 # Readonly entry to display the captured key
-key_press_entry = ttk.Entry(root, state="readonly")
+key_press_entry = ttk.Entry(root)
+key_press_entry.insert(0, saved_config.get("key", ""))  # Default key value
+key_press_entry.config(state="readonly")
 key_press_entry.grid(column=1, row=1, sticky="ew", padx=5)
 
 # Button to set the key
@@ -77,7 +112,7 @@ interval_value = ttk.Spinbox(
     validate="key", 
     validatecommand=vcmd
 )
-interval_value.insert(0, "1.0")  # Default interval value
+interval_value.insert(0, saved_config.get("interval", "1.0"))  # Default interval value
 interval_value.grid(column=1, row=2, sticky="ew", padx=5)
 
 is_started = False
@@ -114,6 +149,7 @@ def toggle_start_stop():
         
         is_started = True
         start_stop_button.config(text="Stop")
+        
         # Start the auto key presser in a separate thread
         threading.Thread(target=auto_key_presser, args=(key, interval), daemon=True).start()
     else:
@@ -123,7 +159,7 @@ def toggle_start_stop():
 start_stop_button = ttk.Button(root, text="Start", command=toggle_start_stop)
 start_stop_button.grid(column=0, row=5, columnspan=2, sticky="e", padx=5, pady=5)
 
-quit_button = ttk.Button(root, text="Quit", command=root.destroy)
+quit_button = ttk.Button(root, text="Quit", command=save_and_quit)
 quit_button.grid(column=5, row=5, sticky="e", padx=5, pady=5)
 
 root.mainloop()
